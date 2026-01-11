@@ -10,10 +10,22 @@ import { generateResult } from './services/ai.service.js';
 const port = process.env.PORT || 3000;
 
 const server = http.createServer(app);
+
+// Socket.IO CORS Configuration
+const allowedOrigins = [
+    process.env.FRONTEND_URL, // Your Vercel domain
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:5174'
+].filter(Boolean);
+
 const io = new Server(server, {
     cors: {
-        origin: '*'
-    }
+        origin: allowedOrigins,
+        credentials: true,
+        methods: ['GET', 'POST']
+    },
+    transports: ['websocket', 'polling'] // Fallback to polling if websocket fails
 });
 
 io.use(async (socket, next) => {
