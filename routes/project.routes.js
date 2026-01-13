@@ -37,5 +37,11 @@ router.put('/update-file-tree',
     projectController.updateFileTree
 )
 
+// NEW: Get available users for invitation
+router.get('/available-users/:projectId',
+    authMiddleWare.authUser,
+    projectController.getAvailableUsersForInvitation
+)
+
 
 export default router;
