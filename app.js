@@ -7,11 +7,11 @@ import aiRoutes from './routes/ai.routes.js';
 import invitationRoutes from './routes/invitation.routes.js';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
+
 connect();
 
 const app = express();
 
-// CORS Configuration
 const allowedOrigins = [
     process.env.FRONTEND_URL,
     'http://localhost:5173',
@@ -21,12 +21,9 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin
         if (!origin) return callback(null, true);
-        
         if (allowedOrigins.indexOf(origin) === -1) {
-            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-            return callback(new Error(msg), false);
+            return callback(new Error('CORS policy error'), false);
         }
         return callback(null, true);
     },
@@ -38,9 +35,6 @@ app.use(cors({
     optionsSuccessStatus: 204
 }));
 
-// Handle preflight
-app.options('*', cors());
-
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -48,7 +42,7 @@ app.use(cookieParser());
 
 app.use('/users', userRoutes);
 app.use('/projects', projectRoutes);
-app.use("/ai", aiRoutes);
+app.use('/ai', aiRoutes);
 app.use('/invitations', invitationRoutes);
 
 app.get('/', (req, res) => {
