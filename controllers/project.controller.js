@@ -1,5 +1,4 @@
 import projectModel from '../models/project.model.js';
-import invitationModel from '../models/invitation.model.js';
 import * as projectService from '../services/project.service.js';
 import userModel from '../models/user.model.js';
 import { validationResult } from 'express-validator';
@@ -77,6 +76,7 @@ export const addUserToProject = async (req, res) => {
 
         return res.status(200).json({
             project,
+            message: 'Users added successfully'
         })
 
     } catch (err) {
@@ -133,8 +133,8 @@ export const updateFileTree = async (req, res) => {
 
 }
 
-// NEW: Get available users for invitation (excluding team members and pending invitations)
-export const getAvailableUsersForInvitation = async (req, res) => {
+// Get available users for direct addition (excluding current team members)
+export const getAvailableUsersForProject = async (req, res) => {
     try {
         const { projectId } = req.params;
         const loggedInUser = await userModel.findOne({ email: req.user.email });
@@ -150,22 +150,13 @@ export const getAvailableUsersForInvitation = async (req, res) => {
             return res.status(404).json({ error: 'Project not found' });
         }
 
-        // Get all users with pending invitations for this project
-        const pendingInvitations = await invitationModel.find({
-            project: projectId,
-            status: 'pending'
-        }).select('recipient');
-
-        const pendingRecipientIds = pendingInvitations.map(inv => inv.recipient.toString());
-
         // Get team member IDs
         const teamMemberIds = project.users.map(userId => userId.toString());
 
-        // Exclude: current user, team members, and users with pending invitations
+        // Exclude: current user and team members
         const excludedIds = [
             loggedInUser._id.toString(),
-            ...teamMemberIds,
-            ...pendingRecipientIds
+            ...teamMemberIds
         ];
 
         // Get available users
