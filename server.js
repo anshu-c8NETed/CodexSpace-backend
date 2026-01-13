@@ -11,9 +11,8 @@ const port = process.env.PORT || 3000;
 
 const server = http.createServer(app);
 
-// Socket.IO CORS Configuration
 const allowedOrigins = [
-    process.env.FRONTEND_URL, // Your Vercel domain
+    process.env.FRONTEND_URL,
     'http://localhost:5173',
     'http://localhost:3000',
     'http://localhost:5174'
@@ -25,7 +24,7 @@ const io = new Server(server, {
         credentials: true,
         methods: ['GET', 'POST']
     },
-    transports: ['websocket', 'polling'] // Fallback to polling if websocket fails
+    transports: ['websocket', 'polling']
 });
 
 io.use(async (socket, next) => {
@@ -33,19 +32,17 @@ io.use(async (socket, next) => {
         const token = socket.handshake.auth?.token || socket.handshake.headers.authorization?.split(' ')[1];
         const projectId = socket.handshake.query.projectId;
 
-        // Validate projectId
         if (!mongoose.Types.ObjectId.isValid(projectId)) {
             return next(new Error('Invalid projectId'));
         }
 
-        // Find project
-        socket.project = await projectModel.findById(projectId);
+        // FIX: Populate users array with full user details
+        socket.project = await projectModel.findById(projectId).populate('users', 'email');
 
         if (!socket.project) {
             return next(new Error('Project not found'));
         }
 
-        // Validate token
         if (!token) {
             return next(new Error('Authentication error: Token missing'));
         }
@@ -69,7 +66,6 @@ io.on('connection', socket => {
     socket.roomId = socket.project._id.toString();
     console.log(`User ${socket.user.email || socket.user._id} connected to project ${socket.roomId}`);
     
-    // Join the project room
     socket.join(socket.roomId);
 
     socket.on('project-message', async data => {
@@ -81,18 +77,14 @@ io.on('connection', socket => {
                 return;
             }
 
-            // Broadcast message to other users in the room
             socket.broadcast.to(socket.roomId).emit('project-message', data);
 
-            // Check if AI is mentioned
             const aiIsPresentInMessage = message.includes('@ai');
 
             if (aiIsPresentInMessage) {
-                // Send "AI is typing" indicator
                 io.to(socket.roomId).emit('ai-typing', { isTyping: true });
 
                 try {
-                    // Remove @ai and get the actual prompt
                     const prompt = message.replace('@ai', '').trim();
 
                     if (!prompt) {
@@ -109,13 +101,10 @@ io.on('connection', socket => {
 
                     console.log(`AI request from ${socket.user.email}: ${prompt.substring(0, 50)}...`);
 
-                    // Generate AI response
                     const result = await generateResult(prompt);
 
-                    // Stop "AI is typing" indicator
                     io.to(socket.roomId).emit('ai-typing', { isTyping: false });
 
-                    // Handle error responses
                     if (result.error) {
                         console.error('AI Error:', result.text);
                         io.to(socket.roomId).emit('project-message', {
@@ -130,12 +119,9 @@ io.on('connection', socket => {
                         return;
                     }
 
-                    // Send AI response
-                    // Check if result has fileTree (code generation) or just text
                     let aiMessage = '';
                     
                     if (result.fileTree) {
-                        // If AI generated code, send structured response
                         aiMessage = result.text;
                         io.to(socket.roomId).emit('project-message', {
                             message: aiMessage,
@@ -148,7 +134,6 @@ io.on('connection', socket => {
                             startCommand: result.startCommand
                         });
                     } else {
-                        // If just text response
                         aiMessage = result.text || JSON.stringify(result);
                         io.to(socket.roomId).emit('project-message', {
                             message: aiMessage,
@@ -164,10 +149,8 @@ io.on('connection', socket => {
                 } catch (aiError) {
                     console.error('AI Generation Error:', aiError.message);
                     
-                    // Stop "AI is typing" indicator
                     io.to(socket.roomId).emit('ai-typing', { isTyping: false });
 
-                    // Send error message to user
                     io.to(socket.roomId).emit('project-message', {
                         message: 'Sorry, I encountered an error processing your request. Please try again.',
                         sender: {
@@ -190,13 +173,11 @@ io.on('connection', socket => {
         socket.leave(socket.roomId);
     });
 
-    // Handle connection errors
     socket.on('error', (error) => {
         console.error('Socket error:', error.message);
     });
 });
 
-// Graceful shutdown
 process.on('SIGTERM', () => {
     console.log('SIGTERM received, closing server gracefully...');
     server.close(() => {
