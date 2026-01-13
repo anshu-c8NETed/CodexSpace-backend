@@ -184,3 +184,86 @@ export const getAvailableUsersForProject = async (req, res) => {
         res.status(400).json({ error: err.message });
     }
 }
+
+// NEW: Search users by email (for adding collaborators)
+export const searchUsersByEmail = async (req, res) => {
+    try {
+        const { projectId } = req.params;
+        const { email } = req.query;
+        
+        const loggedInUser = await userModel.findOne({ email: req.user.email });
+
+        if (!loggedInUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Get the project with team members
+        const project = await projectModel.findById(projectId);
+
+        if (!project) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
+        // Get team member IDs
+        const teamMemberIds = project.users.map(userId => userId.toString());
+
+        // Exclude: current user and team members
+        const excludedIds = [
+            loggedInUser._id.toString(),
+            ...teamMemberIds
+        ];
+
+        // Build search query
+        let searchQuery = {
+            _id: { $nin: excludedIds }
+        };
+
+        // If email search parameter provided, add email filter
+        if (email && email.trim()) {
+            searchQuery.email = { 
+                $regex: email.trim(), 
+                $options: 'i' // case-insensitive
+            };
+        }
+
+        // Search users
+        const users = await userModel.find(searchQuery)
+            .select('email')
+            .limit(10); // Limit results to 10
+
+        return res.status(200).json({
+            users: users,
+            count: users.length
+        });
+
+    } catch (err) {
+        console.log('Error searching users:', err);
+        res.status(400).json({ error: err.message });
+    }
+}
+
+// NEW: Delete project
+export const deleteProject = async (req, res) => {
+    try {
+        const { projectId } = req.params;
+        const loggedInUser = await userModel.findOne({ email: req.user.email });
+
+        if (!loggedInUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const deletedProject = await projectService.deleteProject({
+            projectId,
+            userId: loggedInUser._id
+        });
+
+        return res.status(200).json({
+            message: 'Project deleted successfully',
+            project: deletedProject
+        });
+
+    } catch (err) {
+        console.log('Error deleting project:', err);
+        res.status(400).json({ error: err.message });
+    }
+}
