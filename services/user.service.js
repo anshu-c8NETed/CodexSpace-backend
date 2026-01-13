@@ -1,7 +1,5 @@
 import userModel from '../models/user.model.js';
 
-
-
 export const createUser = async ({
     email, password
 }) => {
@@ -22,8 +20,13 @@ export const createUser = async ({
 }
 
 export const getAllUsers = async ({ userId }) => {
+    if (!userId) {
+        throw new Error('User ID is required');
+    }
+    
     const users = await userModel.find({
         _id: { $ne: userId }
-    });
+    }).select('email');
+    
     return users;
 }
