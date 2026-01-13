@@ -11,15 +11,22 @@ export const createProject = async ({
         throw new Error('UserId is required')
     }
 
+    // Check if project name already exists
+    const existingProject = await projectModel.findOne({ name: name.toLowerCase().trim() });
+    if (existingProject) {
+        throw new Error('A workspace with this name already exists. Please choose a different name.');
+    }
+
     let project;
     try {
         project = await projectModel.create({
-            name,
+            name: name.toLowerCase().trim(),
             users: [ userId ]
         });
     } catch (error) {
+        // Handle MongoDB duplicate key error
         if (error.code === 11000) {
-            throw new Error('Project name already exists');
+            throw new Error('A workspace with this name already exists. Please choose a different name.');
         }
         throw error;
     }
