@@ -11,24 +11,17 @@ connect();
 
 const app = express();
 
-app.use((req, res, next) => {
-  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
-  next();
-});
-
-
 // CORS Configuration
 const allowedOrigins = [
-    process.env.FRONTEND_URL, // Your Vercel domain (set in Render)
+    process.env.FRONTEND_URL,
     'http://localhost:5173',
     'http://localhost:3000',
     'http://localhost:5174'
-].filter(Boolean); // Remove undefined values
+].filter(Boolean);
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
+        // Allow requests with no origin
         if (!origin) return callback(null, true);
         
         if (allowedOrigins.indexOf(origin) === -1) {
@@ -40,8 +33,13 @@ app.use(cors({
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    exposedHeaders: ['Set-Cookie']
+    exposedHeaders: ['Set-Cookie'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204
 }));
+
+// Handle preflight
+app.options('*', cors());
 
 app.use(morgan('dev'));
 app.use(express.json());
@@ -58,5 +56,3 @@ app.get('/', (req, res) => {
 });
 
 export default app;
-
-
