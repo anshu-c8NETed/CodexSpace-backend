@@ -43,5 +43,17 @@ router.get('/available-users/:projectId',
     projectController.getAvailableUsersForProject
 )
 
+// NEW: Search users by email for adding collaborators
+router.get('/search-users/:projectId',
+    authMiddleWare.authUser,
+    projectController.searchUsersByEmail
+)
+
+// NEW: Delete project endpoint
+router.delete('/delete/:projectId',
+    authMiddleWare.authUser,
+    projectController.deleteProject
+)
+
 
 export default router;
