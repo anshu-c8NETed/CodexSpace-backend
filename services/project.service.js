@@ -143,3 +143,44 @@ export const updateFileTree = async ({ projectId, fileTree }) => {
 
     return project;
 }
+
+// NEW: Delete project
+export const deleteProject = async ({ projectId, userId }) => {
+    if (!projectId) {
+        throw new Error("projectId is required")
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+        throw new Error("Invalid projectId")
+    }
+
+    if (!userId) {
+        throw new Error("userId is required")
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new Error("Invalid userId")
+    }
+
+    // Check if project exists and user is a member
+    const project = await projectModel.findOne({
+        _id: projectId,
+        users: userId
+    });
+
+    if (!project) {
+        throw new Error("Project not found or you don't have permission to delete it")
+    }
+
+    // Check if user is the first member (creator) - only creator can delete
+    const isCreator = project.users[0].toString() === userId.toString();
+    
+    if (!isCreator) {
+        throw new Error("Only the project creator can delete this workspace")
+    }
+
+    // Delete the project
+    const deletedProject = await projectModel.findByIdAndDelete(projectId);
+
+    return deletedProject;
+}
