@@ -24,7 +24,18 @@ export const createProject = async (req, res) => {
 
     } catch (err) {
         console.log(err);
-        res.status(400).send(err.message);
+        
+        // Send user-friendly error message
+        if (err.message.includes('already exists')) {
+            return res.status(400).json({ 
+                error: err.message,
+                type: 'duplicate_name'
+            });
+        }
+        
+        res.status(400).json({ 
+            error: err.message || 'Failed to create workspace'
+        });
     }
 
 
