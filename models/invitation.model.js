@@ -27,8 +27,13 @@ const invitationSchema = new mongoose.Schema({
     }
 });
 
-// Index to prevent duplicate pending invitations
-invitationSchema.index({ project: 1, recipient: 1, status: 1 });
+invitationSchema.index(
+    { project: 1, recipient: 1, status: 1 },
+    { 
+        unique: true,
+        partialFilterExpression: { status: 'pending' }
+    }
+);
 
 const Invitation = mongoose.model('invitation', invitationSchema);
 
