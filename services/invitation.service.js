@@ -3,7 +3,6 @@ import projectModel from '../models/project.model.js';
 import mongoose from 'mongoose';
 
 export const createInvitation = async ({ projectId, senderId, recipientId }) => {
-    // Validation
     if (!projectId || !senderId || !recipientId) {
         throw new Error('Project ID, sender ID, and recipient ID are required');
     }
@@ -14,12 +13,10 @@ export const createInvitation = async ({ projectId, senderId, recipientId }) => 
         throw new Error('Invalid ID format');
     }
 
-    // FIXED: Prevent self-invitation
     if (senderId.toString() === recipientId.toString()) {
         throw new Error('You cannot invite yourself');
     }
 
-    // Check if sender is part of the project
     const project = await projectModel.findOne({
         _id: projectId,
         users: senderId
@@ -29,7 +26,6 @@ export const createInvitation = async ({ projectId, senderId, recipientId }) => 
         throw new Error('Project not found or user not authorized');
     }
 
-    // Check if recipient is already in the project
     const isAlreadyMember = project.users.some(userId => 
         userId.toString() === recipientId.toString()
     );
@@ -38,10 +34,9 @@ export const createInvitation = async ({ projectId, senderId, recipientId }) => 
         throw new Error('User is already a member of this project');
     }
 
-    // FIXED: Check for existing pending invitation with better error handling
     const existingInvitation = await Invitation.findOne({
-        project: projectId,
-        recipient: recipientId,
+        project: projectId,  // ✅ CORRECT field name
+        recipient: recipientId,  // ✅ CORRECT field name
         status: 'pending'
     });
 
@@ -50,15 +45,14 @@ export const createInvitation = async ({ projectId, senderId, recipientId }) => 
     }
 
     try {
-        // Create invitation
+        // ✅ FIXED: Use correct field names from model
         const invitation = await Invitation.create({
-            project: projectId,
-            sender: senderId,
-            recipient: recipientId,
+            project: projectId,      // Not 'projectId'
+            sender: senderId,        // Not 'senderId'
+            recipient: recipientId,  // Not 'recipientId'
             status: 'pending'
         });
 
-        // Populate the invitation with details
         await invitation.populate([
             { path: 'project', select: 'name' },
             { path: 'sender', select: 'email' },
@@ -67,7 +61,6 @@ export const createInvitation = async ({ projectId, senderId, recipientId }) => 
 
         return invitation;
     } catch (error) {
-        // FIXED: Handle duplicate key error gracefully
         if (error.code === 11000) {
             throw new Error('An invitation already exists for this user');
         }
@@ -105,7 +98,6 @@ export const acceptInvitation = async ({ invitationId, userId }) => {
         throw new Error('Invalid ID format');
     }
 
-    // Find invitation
     const invitation = await Invitation.findOne({
         _id: invitationId,
         recipient: userId,
@@ -116,11 +108,9 @@ export const acceptInvitation = async ({ invitationId, userId }) => {
         throw new Error('Invitation not found or already processed');
     }
 
-    // Update invitation status
     invitation.status = 'accepted';
     await invitation.save();
 
-    // Add user to project
     const project = await projectModel.findByIdAndUpdate(
         invitation.project,
         { $addToSet: { users: userId } },
@@ -149,7 +139,6 @@ export const rejectInvitation = async ({ invitationId, userId }) => {
         throw new Error('Invalid ID format');
     }
 
-    // Find invitation
     const invitation = await Invitation.findOne({
         _id: invitationId,
         recipient: userId,
@@ -160,7 +149,6 @@ export const rejectInvitation = async ({ invitationId, userId }) => {
         throw new Error('Invitation not found or already processed');
     }
 
-    // Update invitation status
     invitation.status = 'rejected';
     await invitation.save();
 
@@ -182,7 +170,6 @@ export const getSentInvitations = async ({ projectId, userId }) => {
         throw new Error('Invalid ID format');
     }
 
-    // Verify user is part of the project
     const project = await projectModel.findOne({
         _id: projectId,
         users: userId
