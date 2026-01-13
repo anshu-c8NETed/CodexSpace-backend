@@ -37,10 +37,10 @@ router.put('/update-file-tree',
     projectController.updateFileTree
 )
 
-// NEW: Get available users for invitation
+// Get available users for direct addition
 router.get('/available-users/:projectId',
     authMiddleWare.authUser,
-    projectController.getAvailableUsersForInvitation
+    projectController.getAvailableUsersForProject
 )
 
 
