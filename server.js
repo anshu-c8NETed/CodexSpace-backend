@@ -5,6 +5,7 @@ import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import projectModel from './models/project.model.js';
+import userModel from './models/user.model.js';
 import { generateResult } from './services/ai.service.js';
 
 const port = process.env.PORT || 3000;
@@ -36,7 +37,13 @@ io.use(async (socket, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         if (!decoded) return next(new Error('Authentication error: Invalid token'));
 
-        socket.user = decoded;
+        const user = await userModel.findOne({ email: decoded.email });
+        if (!user) return next(new Error('User not found'));
+
+        socket.user = {
+            _id: user._id.toString(),
+            email: user.email
+        };
 
         const projectId = socket.handshake.query.projectId;
         if (projectId && mongoose.Types.ObjectId.isValid(projectId)) {
@@ -54,16 +61,18 @@ io.use(async (socket, next) => {
 io.on('connection', socket => {
     console.log(`Socket connected: ${socket.id}`);
     
-    if (socket.user) {
-        const userRoom = socket.user._id || socket.user.email;
+    // Join personal room
+    if (socket.user && socket.user._id) {
+        const userRoom = socket.user._id;
         socket.join(userRoom);
         console.log(`✅ User ${socket.user.email} joined personal room: ${userRoom}`);
     }
 
+    // Join project room if available
     if (socket.project) {
         socket.roomId = socket.project._id.toString();
         socket.join(socket.roomId);
-        console.log(`User ${socket.user.email} connected to project ${socket.roomId}`);
+        console.log(`✅ User ${socket.user.email} joined project room: ${socket.roomId}`);
     }
 
     socket.on('project-message', async data => {
@@ -130,6 +139,9 @@ io.on('connection', socket => {
         console.log(`Socket disconnected: ${socket.id}`);
         if (socket.roomId) {
             socket.leave(socket.roomId);
+        }
+        if (socket.user && socket.user._id) {
+            socket.leave(socket.user._id);
         }
     });
 
