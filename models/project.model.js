@@ -7,7 +7,7 @@ const projectSchema = new mongoose.Schema({
         lowercase: true,
         required: true,
         trim: true,
-        unique: [ true, 'Project name must be unique' ],
+        unique: true, // Keep unique constraint
     },
 
     users: [
@@ -23,6 +23,8 @@ const projectSchema = new mongoose.Schema({
 
 })
 
+// Add index for better error handling
+projectSchema.index({ name: 1 }, { unique: true });
 
 const Project = mongoose.model('project', projectSchema)
 
