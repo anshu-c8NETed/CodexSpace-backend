@@ -19,7 +19,6 @@ const userSchema = new mongoose.Schema({
     }
 })
 
-
 userSchema.statics.hashPassword = async function (password) {
     return await bcrypt.hash(password, 10);
 }
@@ -28,14 +27,17 @@ userSchema.methods.isValidPassword = async function (password) {
     return await bcrypt.compare(password, this.password);
 }
 
+// FIXED: Include _id in JWT payload
 userSchema.methods.generateJWT = function () {
     return jwt.sign(
-        { email: this.email },
+        { 
+            _id: this._id.toString(),
+            email: this.email 
+        },
         process.env.JWT_SECRET,
         { expiresIn: '24h' }
     );
 }
-
 
 const User = mongoose.model('user', userSchema);
 
