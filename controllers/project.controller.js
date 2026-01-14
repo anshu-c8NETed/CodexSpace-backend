@@ -239,9 +239,12 @@ export const searchUsersByEmail = async (req, res) => {
         const { projectId } = req.params;
         const { email } = req.query;
         
+        console.log('🔍 Search request:', { projectId, email, user: req.user.email });
+        
         const loggedInUser = await userModel.findOne({ email: req.user.email });
 
         if (!loggedInUser) {
+            console.log('❌ User not found');
             return res.status(404).json({ error: 'User not found' });
         }
 
@@ -252,18 +255,34 @@ export const searchUsersByEmail = async (req, res) => {
             .populate('users', 'email');
 
         if (!project) {
+            console.log('❌ Project not found');
             return res.status(404).json({ error: 'Project not found' });
         }
 
-        // Verify user is a member
-        if (!project.isMember(loggedInUser._id)) {
+        // FIXED: Check if user is owner OR in users array
+        const isOwner = project.owner._id.toString() === loggedInUser._id.toString();
+        const isInUsersArray = project.users.some(u => u._id.toString() === loggedInUser._id.toString());
+        const hasAccess = isOwner || isInUsersArray;
+
+        console.log('🔐 Authorization check:', {
+            isOwner,
+            isInUsersArray,
+            hasAccess,
+            userId: loggedInUser._id.toString(),
+            ownerId: project.owner._id.toString()
+        });
+
+        if (!hasAccess) {
+            console.log('❌ Access denied');
             return res.status(403).json({ 
                 error: 'You do not have access to this project',
                 type: 'access_denied'
             });
         }
 
-        // Get all existing member IDs (including owner)
+        console.log('✅ Access granted, searching users...');
+
+        // Get all existing member IDs
         const existingMemberIds = project.users.map(user => user._id.toString());
 
         // Build search query
@@ -279,11 +298,15 @@ export const searchUsersByEmail = async (req, res) => {
             };
         }
 
+        console.log('📋 Search query:', searchQuery);
+
         // Search users
         const users = await userModel
             .find(searchQuery)
             .select('email')
             .limit(10);
+
+        console.log('✅ Found users:', users.length);
 
         return res.status(200).json({
             users: users,
@@ -291,8 +314,8 @@ export const searchUsersByEmail = async (req, res) => {
         });
 
     } catch (err) {
-        console.error('Search users error:', err);
-        res.status(400).json({ error: err.message });
+        console.error('❌ Search error:', err);
+        return res.status(400).json({ error: err.message });
     }
 };
 
