@@ -1,32 +1,43 @@
 import mongoose from 'mongoose';
 
-
 const projectSchema = new mongoose.Schema({
     name: {
         type: String,
         lowercase: true,
         required: true,
         trim: true,
-        unique: true, // Keep unique constraint
+        unique: true,
     },
-
-    users: [
-        {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'user'
-        }
-    ],
+    owner: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'user',
+        required: true,
+        immutable: true
+    },
+    users: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'user'
+    }],
     fileTree: {
         type: Object,
         default: {}
     },
+}, {
+    timestamps: true
+});
 
-})
-
-// Add index for better error handling
 projectSchema.index({ name: 1 }, { unique: true });
+projectSchema.index({ owner: 1 });
+projectSchema.index({ users: 1 });
 
-const Project = mongoose.model('project', projectSchema)
+projectSchema.methods.isOwner = function(userId) {
+    return this.owner.toString() === userId.toString();
+};
 
+projectSchema.methods.isMember = function(userId) {
+    return this.users.some(user => user.toString() === userId.toString());
+};
+
+const Project = mongoose.model('project', projectSchema);
 
 export default Project;
