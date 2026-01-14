@@ -34,8 +34,12 @@ projectSchema.methods.isOwner = function(userId) {
     return this.owner.toString() === userId.toString();
 };
 
+// FIXED: Include owner in membership check
 projectSchema.methods.isMember = function(userId) {
-    return this.users.some(user => user.toString() === userId.toString());
+    // Check if user is owner OR in users array
+    const isOwner = this.owner.toString() === userId.toString();
+    const isInUsers = this.users.some(user => user.toString() === userId.toString());
+    return isOwner || isInUsers;
 };
 
 const Project = mongoose.model('project', projectSchema);
